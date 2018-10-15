@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright 2016 gsenia
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.apache.spark</groupId>
+    <version>2.2.2</version>
+    <description>
+	Apache Spark is a fast and general engine for large-scale data processing.
+    </description>
+    <url>http://github.com/apache/spark</url>
+
+
+    <artifactId>apache-spark-bin</artifactId>
+    <packaging>pom</packaging>
+    <name>apache-spark-bin</name>
+
+    <properties>
+	<app.home>/apps/gss-spark2</app.home>
+        <finalrpm.Name>gss-spark2</finalrpm.Name>
+        <final.Name>spark</final.Name>
+        <dlfolderName>${final.Name}-${project.version}-bin-hadoop2.7</dlfolderName>
+        <dlfileName>${final.Name}-${project.version}-bin-hadoop2.7.tgz</dlfileName>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <build>
+
+        <finalName>${final.Name}-${project.version}</finalName>
+
+        <plugins>
+        <plugin>
+            <groupId>com.googlecode.maven-download-plugin</groupId>
+            <artifactId>download-maven-plugin</artifactId>
+            <version>1.2.1</version>
+            <executions>
+                <execution>
+                    <id>download-spark</id>
+                    <phase>generate-resources</phase>
+                    <goals>
+                        <goal>wget</goal>
+                    </goals>
+                    <configuration>
+                        <url>http://apache.claz.org/spark/spark-${project.version}/${dlfileName}</url>
+                        <unpack>true</unpack>
+                        <outputDirectory>${project.build.directory}/spark</outputDirectory>
+                    </configuration>
+                </execution>
+	<!-- Used to Download and include Jersey for ATS Environments by default disabled -->
+	<!--
+                <execution>
+                    <id>download-jersey119</id>
+                    <phase>generate-resources</phase>
+                    <goals>
+                        <goal>wget</goal>
+                    </goals>
+                    <configuration>
+                        <url>http://central.maven.org/maven2/com/sun/jersey/jersey-bundle/1.19.1/jersey-bundle-1.19.1.jar</url>
+                        <outputDirectory>${project.build.directory}/spark/${dlfolderName}/jars</outputDirectory>
+                    </configuration>
+                </execution>
+	-->
+            </executions>
+        </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>1.8</version>
+        <executions>
+          <execution>
+            <id>parse-package-version</id>
+            <goals>
+              <goal>regex-property</goal>
+            </goals>
+            <configuration>
+              <name>package-version</name>
+              <value>${rpm.version}</value>
+              <regex>^^([0-9]+)\.([0-9]+)\.([0-9]+)?</regex>
+              <replacement>$1_$2_$3</replacement>
+              <failIfNoMatch>true</failIfNoMatch>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>rpm-maven-plugin</artifactId>
+        <version>2.1.5</version>
+        <executions>
+                <execution>
+                        <phase>package</phase>
+                        <goals>
+                                <goal>rpm</goal>
+                        </goals>
+                </execution>
+        </executions>
+        <configuration>
+         <name>gss-spark2_${package-version}_${rpm.release}</name>
+	 <prefix>${app.home}/spark_${package-version}_${rpm.release}</prefix>
+         <defineStatements>
+          <defineStatement>
+    __os_install_post \
+    %{!?__debug_package:
+    /usr/lib/rpm/redhat/brp-strip %{__strip} \
+    /usr/lib/rpm/redhat/brp-strip-comment-note %{__strip} %{__objdump} \
+    } \
+    /usr/lib/rpm/redhat/brp-strip-static-archive %{__strip} \
+    /usr/lib/rpm/redhat/brp-python-hardlink
+          </defineStatement>
+         </defineStatements>
+         <autoRequires>false</autoRequires>
+         <autoProvides>false</autoProvides>
+         <copyright>GSS</copyright>
+         <group>Development</group>
+         <description>Apache Spark</description>
+         <mappings>
+                <mapping>
+                        <directory>${app.home}/spark_${package-version}_${rpm.release}</directory>
+                        <filemode>755</filemode>
+                        <username>${install.user}</username>
+                        <groupname>${install.user}</groupname>
+                        <sources>
+                                <source>
+                                        <location>target/spark/${dlfolderName}</location>
+				        <excludes>
+                        			<exclude>conf/**</exclude>
+                      			</excludes>
+                                </source>
+                        </sources>
+                </mapping>
+                <mapping>
+                        <configuration>noreplace</configuration>
+                        <directory>${app.home}/spark_${package-version}_${rpm.release}/conf</directory>
+                        <filemode>755</filemode>
+                        <username>${install.user}</username>
+                        <groupname>${install.user}</groupname>
+                        <sources>
+                                <source>
+                                        <location>target/spark/${dlfolderName}/conf</location>
+                                </source>
+                        </sources>
+                </mapping>
+        </mappings>
+        <installScriptlet>
+            <scriptFile>rpm/install.sh</scriptFile>
+            <fileEncoding>utf-8</fileEncoding>
+         </installScriptlet>
+          <postinstallScriptlet>
+            <scriptFile>rpm/postinstall.sh</scriptFile>
+            <fileEncoding>utf-8</fileEncoding>
+          </postinstallScriptlet>
+       </configuration>
+      </plugin>
+     </plugins>
+    </build>
+</project>
